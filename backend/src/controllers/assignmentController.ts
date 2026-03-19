@@ -1,0 +1,211 @@
+import { Request, Response } from 'express';
+import Assignment from '../models/Assignment';
+import { assignmentSchema } from '../utils/validation';
+import { questionGenerationQueue, pdfGenerationQueue } from '../config/queue';
+import pdfService from '../services/pdfService';
+import { redisClient } from '../config/redis';
+
+export const createAssignment = async (req: Request, res: Response) => {
+  try {
+    const validatedData = assignmentSchema.parse(req.body);
+
+    const assignment = new Assignment({
+      ...validatedData,
+      dueDate: new Date(validatedData.dueDate),
+      jobStatus: 'pending'
+    });
+
+    await assignment.save();
+
+    res.status(201).json({
+      success: true,
+      data: assignment
+    });
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to create assignment'
+    });
+  }
+};
+
+export const generateQuestions = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    const job = await questionGenerationQueue.add('generate', {
+      assignmentId: id
+    });
+
+    assignment.jobId = job.id;
+    assignment.jobStatus = 'pending';
+    await assignment.save();
+
+    res.status(200).json({
+      success: true,
+      jobId: job.id,
+      message: 'Question generation started'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to start generation'
+    });
+  }
+};
+
+export const getAssignment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const cacheKey = `assignment:${id}`;
+    const cached = await redisClient.get(cacheKey);
+
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        data: JSON.parse(cached),
+        cached: true
+      });
+    }
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(assignment));
+
+    res.status(200).json({
+      success: true,
+      data: assignment
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch assignment'
+    });
+  }
+};
+
+export const getJobStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      status: assignment.jobStatus,
+      hasResult: !!assignment.generatedPaper
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch status'
+    });
+  }
+};
+
+export const regenerateQuestions = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    const job = await questionGenerationQueue.add('generate', {
+      assignmentId: id
+    });
+
+    assignment.jobId = job.id;
+    assignment.jobStatus = 'pending';
+    assignment.generatedPaper = undefined;
+    await assignment.save();
+
+    await redisClient.del(`assignment:${id}`);
+
+    res.status(200).json({
+      success: true,
+      jobId: job.id,
+      message: 'Regeneration started'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to regenerate'
+    });
+  }
+};
+
+export const downloadPDF = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    if (!assignment.generatedPaper) {
+      return res.status(400).json({
+        success: false,
+        error: 'No generated paper available'
+      });
+    }
+
+    const pdfBuffer = await pdfService.generatePDF(assignment);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${assignment.title}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate PDF'
+    });
+  }
+};
+
+export const getAllAssignments = async (req: Request, res: Response) => {
+  try {
+    const assignments = await Assignment.find()
+      .sort({ createdAt: -1 })
+      .select('-generatedPaper');
+
+    res.status(200).json({
+      success: true,
+      data: assignments
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch assignments'
+    });
+  }
+};
