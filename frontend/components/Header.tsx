@@ -48,10 +48,10 @@ export default function Header({ title, subtitle, showBack }: HeaderProps) {
 
           <div className="flex items-center gap-2 pl-1">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center text-white font-semibold text-[13px]">
-              JD
+              RS
             </div>
             <div className="hidden md:block">
-              <p className="text-[13px] font-outfit font-semibold text-[#1a1a1a]">John Doe</p>
+              <p className="text-[13px] font-outfit font-semibold text-[#1a1a1a]">RaghavS</p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400" strokeWidth={2} />
           </div>
