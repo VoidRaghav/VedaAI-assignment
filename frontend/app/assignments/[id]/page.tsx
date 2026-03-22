@@ -3,14 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import MobileNav from '@/components/MobileNav';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { assignmentApi } from '@/lib/api';
 import { getSocket, connectSocket, joinAssignment, leaveAssignment } from '@/lib/socket';
-import { Assignment, JobProgress, DifficultyLevel } from '@/types';
+import { Assignment, JobProgress } from '@/types';
 import { Download, Loader2 } from 'lucide-react';
 
 export default function AssignmentDetailPage() {
@@ -25,8 +21,10 @@ export default function AssignmentDetailPage() {
 
   useEffect(() => {
     loadAssignment();
-    connectSocket();
+  }, [id]);
 
+  useEffect(() => {
+    connectSocket();
     const socket = getSocket();
     
     socket.on('connect', () => {
@@ -45,6 +43,16 @@ export default function AssignmentDetailPage() {
       socket.off('progress');
     };
   }, [id]);
+
+  useEffect(() => {
+    if (assignment?.jobStatus === 'processing' || assignment?.jobStatus === 'pending') {
+      const pollInterval = setInterval(() => {
+        loadAssignment();
+      }, 2000);
+
+      return () => clearInterval(pollInterval);
+    }
+  }, [assignment?.jobStatus]);
 
   const loadAssignment = async () => {
     try {
@@ -89,34 +97,33 @@ export default function AssignmentDetailPage() {
     }
   };
 
-  const getDifficultyColor = (difficulty: DifficultyLevel) => {
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'hard':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex min-h-screen bg-[#E5E5E5]">
+        <Sidebar />
+        <main className="flex-1 lg:ml-64 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </main>
       </div>
     );
   }
 
   if (!assignment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Assignment not found</h2>
-          <Button onClick={() => router.push('/assignments')}>Go back</Button>
-        </div>
+      <div className="flex min-h-screen bg-[#E5E5E5]">
+        <Sidebar />
+        <main className="flex-1 lg:ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Assignment not found</h2>
+            <button 
+              onClick={() => router.push('/assignments')}
+              className="px-4 py-2 bg-[#333] text-white rounded-lg hover:bg-black transition"
+            >
+              Go back
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
@@ -125,143 +132,129 @@ export default function AssignmentDetailPage() {
   const hasGenerated = assignment.generatedPaper && assignment.jobStatus === 'completed';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gradient-to-r from-[#E2E4E7] via-[#F3F4F6] to-[#F9FAFB]">
       <Sidebar />
-      <div className="lg:pl-64">
-        <Header title="Create New" showBack />
-        
-        <main className="py-6 px-4 sm:px-6 lg:px-8 pb-20 lg:pb-6">
-          {isGenerating && (
-            <Card className="p-6 mb-6 bg-gray-800 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold mb-1">
-                    {assignment.title}
-                  </h3>
-                  <p className="text-sm text-gray-300">
-                    {progress.message || 'Generating question paper...'}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-white border-white hover:bg-gray-700"
-                  onClick={handleDownloadPDF}
-                  disabled={!hasGenerated || downloading}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-white h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress.progress}%` }}
-                ></div>
-              </div>
-            </Card>
-          )}
-
-          {hasGenerated ? (
-            <Card className="p-8 bg-white">
-              <div className="max-w-4xl mx-auto">
-                <div className="text-center mb-8 pb-6 border-b-2 border-black">
-                  <h1 className="text-3xl font-bold mb-3">{assignment.title}</h1>
-                  <div className="flex justify-center gap-8 text-sm">
-                    <span>Total Marks: {assignment.generatedPaper?.totalMarks}</span>
-                    <span>Total Questions: {assignment.generatedPaper?.totalQuestions}</span>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Due Date: {new Date(assignment.dueDate).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mb-8 p-4 border border-gray-300 rounded">
-                  <div>
-                    <label className="text-xs text-gray-500">Name:</label>
-                    <div className="border-b border-black h-6"></div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Roll Number:</label>
-                    <div className="border-b border-black h-6"></div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Section:</label>
-                    <div className="border-b border-black h-6"></div>
-                  </div>
-                </div>
-
-                {assignment.generatedPaper?.sections.map((section, sectionIdx) => (
-                  <div key={sectionIdx} className="mb-8">
-                    <div className="bg-gray-100 p-4 mb-4 border-l-4 border-black">
-                      <h2 className="text-xl font-bold">{section.title}</h2>
-                      <p className="text-sm text-gray-600 mt-1">{section.instruction}</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      {section.questions.map((question, qIdx) => (
-                        <div key={qIdx} className="pl-4">
-                          <div className="flex items-start justify-between gap-4 mb-2">
-                            <p className="flex-1 text-base leading-relaxed">
-                              <span className="font-semibold">Q{qIdx + 1}.</span> {question.text}
-                            </p>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Badge
-                                variant="outline"
-                                className={`text-xs uppercase ${getDifficultyColor(question.difficulty)}`}
-                              >
-                                {question.difficulty}
-                              </Badge>
-                              <span className="text-sm font-semibold text-gray-600">
-                                [{question.marks} marks]
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                <div className="mt-12 pt-6 border-t text-center text-sm text-gray-500">
-                  <p>Generated by VedaAI Assessment Creator</p>
-                </div>
-
-                <div className="mt-8 flex justify-center gap-4">
-                  <Button
-                    onClick={handleDownloadPDF}
-                    disabled={downloading}
-                    className="bg-black hover:bg-gray-800 text-white"
-                  >
-                    {downloading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download as PDF
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleRegenerate}
-                    variant="outline"
-                  >
-                    Regenerate
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <div className="flex flex-col items-center justify-center min-h-[60vh]">
-              <Loader2 className="h-12 w-12 animate-spin mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Generating Question Paper</h2>
-              <p className="text-gray-500">Please wait while AI creates your assessment...</p>
+      <main className="flex-1 lg:pl-64 p-8 overflow-y-auto">
+        {isGenerating && (
+          <div className="bg-[#222] rounded-3xl p-8 mb-6 text-white relative overflow-hidden">
+            <p className="text-lg mb-4 leading-relaxed">
+              Generating your customized <span className="underline decoration-2">Question Paper</span> for {(assignment as any).subject || 'the subject'} - Class {(assignment as any).class || 'Standard'}...
+            </p>
+            <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+              <div
+                className="bg-white h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress.progress}%` }}
+              ></div>
             </div>
-          )}
-        </main>
-      </div>
+            <p className="text-sm text-gray-300">{progress.message || 'Please wait...'}</p>
+          </div>
+        )}
+
+        {hasGenerated ? (
+          <div>
+            <div className="bg-[#222] rounded-3xl p-8 mb-6 text-white relative overflow-hidden">
+              <p className="text-lg mb-4 leading-relaxed">
+                Certainly! Here is your customized <span className="underline decoration-2">Question Paper</span> for {(assignment as any).subject || 'the subject'} - Class {(assignment as any).class || 'Standard'}:
+              </p>
+              <button 
+                onClick={handleDownloadPDF}
+                disabled={!hasGenerated || downloading}
+                className="bg-white text-black px-6 py-2 rounded-full flex items-center gap-2 font-medium hover:bg-gray-200 transition disabled:opacity-50"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} /> Download as PDF
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="max-w-4xl mx-auto bg-white rounded-[40px] shadow-xl p-12 min-h-[1000px]">
+              <header className="text-center mb-10">
+                <h1 className="text-3xl font-extrabold text-[#333]">Delhi Public School, Sector-4, Bokaro</h1>
+                <h2 className="text-xl font-semibold mt-2">Subject: {(assignment as any).subject || 'General'}</h2>
+                <p className="text-lg font-medium">Class: {(assignment as any).class || 'Standard'}</p>
+              </header>
+
+              <div className="flex justify-between font-bold mb-4">
+                <span>Time Allowed: {(assignment as any).duration || '45'} minutes</span>
+                <span>Maximum Marks: {assignment.generatedPaper?.totalMarks}</span>
+              </div>
+              <p className="italic mb-8">All questions are compulsory unless stated otherwise.</p>
+
+              <div className="space-y-2 mb-12">
+                <p><strong>Name:</strong> _________________________</p>
+                <p><strong>Roll Number:</strong> __________________</p>
+                <p><strong>Class: {(assignment as any).class || 'Standard'} Section:</strong> ___________</p>
+              </div>
+
+              {assignment.generatedPaper?.sections.map((section, sectionIdx) => {
+                let questionCounter = 1;
+                if (sectionIdx > 0) {
+                  for (let i = 0; i < sectionIdx; i++) {
+                    questionCounter += assignment.generatedPaper?.sections[i].questions.length || 0;
+                  }
+                }
+
+                return (
+                  <div key={sectionIdx} className="mb-10">
+                    <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold border-b-2 border-black inline-block px-4 pb-1">
+                        {section.title}
+                      </h2>
+                    </div>
+
+                    <div className="mb-6">
+                      <h3 className="font-bold text-lg">{section.instruction}</h3>
+                    </div>
+
+                    <ol className="list-decimal pl-5 space-y-6">
+                      {section.questions.map((question, qIdx) => {
+                        const currentNum = questionCounter + qIdx;
+                        return (
+                          <li key={qIdx} className="text-base">
+                            {question.text} <span className="font-semibold">[{question.marks} Marks]</span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                );
+              })}
+
+              {assignment.generatedPaper?.sections && assignment.generatedPaper.sections.length > 0 && (
+                <div className="mt-12 pt-8 border-t-2 border-gray-300">
+                  <h2 className="text-2xl font-bold text-center mb-6 underline">Answer Key</h2>
+                  <ol className="list-decimal pl-5 space-y-4">
+                    {(() => {
+                      return assignment.generatedPaper.sections.flatMap((section) =>
+                        section.questions.map((q, qIdx) => {
+                          const answer = (q as any).answer || 'Answer not provided';
+                          return (
+                            <li key={`${section.title}-${qIdx}`} className="text-base">
+                              {answer}
+                            </li>
+                          );
+                        })
+                      );
+                    })()}
+                  </ol>
+                </div>
+              )}
+
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <Loader2 className="h-12 w-12 animate-spin mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Generating Question Paper</h2>
+            <p className="text-gray-500">Please wait while AI creates your assessment...</p>
+          </div>
+        )}
+      </main>
       <MobileNav />
     </div>
   );

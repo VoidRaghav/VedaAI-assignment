@@ -1,9 +1,18 @@
 import { Worker, Job } from 'bullmq';
-import { redisClient } from '../config/redis';
 import Assignment from '../models/Assignment';
 import aiService from '../services/aiService';
 import { AssignmentInput } from '../types';
-import { io } from '../server';
+import { getIO } from '../config/socket';
+import { redisClient } from '../config/redis';
+
+const redisConnection = {
+  host: process.env.REDIS_URL?.includes('://') 
+    ? new URL(process.env.REDIS_URL).hostname 
+    : 'localhost',
+  port: process.env.REDIS_URL?.includes('://') 
+    ? parseInt(new URL(process.env.REDIS_URL).port || '6379') 
+    : 6379,
+};
 
 export const questionWorker = new Worker(
   'question-generation',
@@ -11,23 +20,22 @@ export const questionWorker = new Worker(
     const { assignmentId } = job.data;
 
     try {
-      await job.updateProgress(10);
-      
       const assignment = await Assignment.findById(assignmentId);
       if (!assignment) {
         throw new Error('Assignment not found');
       }
 
-      assignment.jobStatus = 'processing';
-      await assignment.save();
+      await Assignment.findByIdAndUpdate(
+        assignmentId,
+        { $set: { jobStatus: 'processing' } },
+        { new: true }
+      );
 
-      io.to(assignmentId).emit('progress', {
+      getIO().to(assignmentId).emit('progress', {
         status: 'processing',
-        progress: 20,
-        message: 'Generating questions with AI...'
+        progress: 30,
+        message: 'AI is generating your questions...'
       });
-
-      await job.updateProgress(30);
 
       const assignmentInput: AssignmentInput = {
         title: assignment.title,
@@ -37,20 +45,43 @@ export const questionWorker = new Worker(
         questionTypes: assignment.questionTypes,
         totalQuestions: assignment.totalQuestions,
         totalMarks: assignment.totalMarks,
-        additionalInstructions: assignment.additionalInstructions
+        additionalInstructions: assignment.additionalInstructions,
+        subject: (assignment as any).subject,
+        class: (assignment as any).class,
+        duration: (assignment as any).duration
       };
 
       const generatedPaper = await aiService.generateQuestions(assignmentInput);
+      console.log('Generated paper:', JSON.stringify(generatedPaper).substring(0, 200));
 
-      await job.updateProgress(80);
+      await Assignment.findByIdAndUpdate(
+        assignmentId,
+        { $set: { generatedPaper: generatedPaper } },
+        { new: true }
+      );
+      
+      const savedAssignment = await Assignment.findByIdAndUpdate(
+        assignmentId,
+        { $set: { jobStatus: 'completed' } },
+        { new: true }
+      );
+      
+      if (!savedAssignment) {
+        throw new Error('Failed to update assignment');
+      }
+      
+      console.log(`Assignment ${assignmentId} saved successfully. Status: ${savedAssignment.jobStatus}`);
+      console.log(`Has generated paper: ${!!savedAssignment.generatedPaper}`);
+      console.log(`Verification - fetching from DB...`);
+      
+      const verification = await Assignment.findById(assignmentId).select('jobStatus generatedPaper');
+      console.log(`DB Status: ${verification?.jobStatus}, Has Paper: ${!!verification?.generatedPaper}`);
 
-      assignment.generatedPaper = generatedPaper;
-      assignment.jobStatus = 'completed';
-      await assignment.save();
+      const cacheKey = `assignment:${assignmentId}`;
+      await redisClient.del(cacheKey);
+      console.log(`Cache invalidated for ${assignmentId}`);
 
-      await job.updateProgress(100);
-
-      io.to(assignmentId).emit('progress', {
+      getIO().to(assignmentId).emit('progress', {
         status: 'completed',
         progress: 100,
         message: 'Question paper generated successfully!'
@@ -58,13 +89,15 @@ export const questionWorker = new Worker(
 
       return { success: true, assignmentId };
     } catch (error) {
-      const assignment = await Assignment.findById(assignmentId);
-      if (assignment) {
-        assignment.jobStatus = 'failed';
-        await assignment.save();
-      }
+      console.error(`Job ${assignmentId} failed:`, error);
+      
+      await Assignment.findByIdAndUpdate(
+        assignmentId,
+        { $set: { jobStatus: 'failed' } },
+        { new: true }
+      );
 
-      io.to(assignmentId).emit('progress', {
+      getIO().to(assignmentId).emit('progress', {
         status: 'failed',
         progress: 0,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -74,7 +107,7 @@ export const questionWorker = new Worker(
     }
   },
   {
-    connection: redisClient,
+    connection: redisConnection,
     concurrency: 5
   }
 );

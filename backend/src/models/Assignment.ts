@@ -4,6 +4,9 @@ import { AssignmentInput, QuestionType, JobStatus, GeneratedPaper } from '../typ
 export interface IAssignment extends Document {
   title: string;
   description?: string;
+  subject?: string;
+  class?: string;
+  duration?: string;
   fileUrl?: string;
   dueDate: Date;
   questionTypes: QuestionType[];
@@ -21,6 +24,9 @@ const AssignmentSchema = new Schema<IAssignment>(
   {
     title: { type: String, required: true },
     description: { type: String },
+    subject: { type: String },
+    class: { type: String },
+    duration: { type: String },
     fileUrl: { type: String },
     dueDate: { type: Date, required: true },
     questionTypes: [{ type: String, enum: ['mcq', 'short', 'long', 'true-false'], required: true }],

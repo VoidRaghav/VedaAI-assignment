@@ -1,68 +1,62 @@
 'use client';
 
-import { Bell, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Bell, ChevronDown, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface HeaderProps {
   title?: string;
+  subtitle?: string;
   showBack?: boolean;
-  onMenuClick?: () => void;
 }
 
-export default function Header({ title, showBack, onMenuClick }: HeaderProps) {
+export default function Header({ title, subtitle, showBack }: HeaderProps) {
+  const router = useRouter();
+
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-      <button
-        type="button"
-        className="lg:hidden -m-2.5 p-2.5 text-gray-700"
-        onClick={onMenuClick}
-      >
-        <Menu className="h-6 w-6" />
-      </button>
-
-      {showBack && (
-        <button className="text-gray-600 hover:text-gray-900">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-      )}
-
-      {title && (
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <FileText className="h-4 w-4" />
-          <span>{title}</span>
+    <header className="bg-white border-b border-gray-200 px-6 py-3.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {showBack && (
+            <button
+              onClick={() => router.back()}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-700" strokeWidth={2} />
+            </button>
+          )}
+          <div>
+            {title && (
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-4 h-4 bg-[#10b981] rounded-full opacity-20 animate-ping"></div>
+                  <div className="relative w-2 h-2 bg-[#10b981] rounded-full"></div>
+                </div>
+                <h1 className="text-[18px] font-lexend font-bold text-[#1a1a1a]">{title}</h1>
+              </div>
+            )}
+            {subtitle && (
+              <p className="mt-1 text-[12px] font-inter text-gray-500">{subtitle}</p>
+            )}
+          </div>
         </div>
-      )}
 
-      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end">
-        <div className="flex items-center gap-x-4 lg:gap-x-6">
-          <button className="relative -m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
-            <Bell className="h-6 w-6" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500"></span>
+        <div className="flex items-center gap-2.5">
+          <button className="relative hover:bg-gray-50 rounded-lg h-9 w-9 flex items-center justify-center">
+            <Bell className="w-[18px] h-[18px] text-gray-600" strokeWidth={2} />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-[#ef4444] rounded-full border border-white"></span>
           </button>
 
-          <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
-
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-sm font-semibold">
+          <div className="flex items-center gap-2 pl-1">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center text-white font-semibold text-[13px]">
               JD
             </div>
-            <span className="hidden lg:block text-sm font-medium">John Doe</span>
-            <svg className="hidden lg:block h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <div className="hidden md:block">
+              <p className="text-[13px] font-outfit font-semibold text-[#1a1a1a]">John Doe</p>
+            </div>
+            <ChevronDown className="w-4 h-4 text-gray-400" strokeWidth={2} />
           </div>
         </div>
       </div>
     </header>
-  );
-}
-
-function FileText({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
   );
 }

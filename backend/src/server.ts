@@ -1,10 +1,10 @@
 import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import { connectDB } from './config/database';
 import { connectRedis } from './config/redis';
+import { initializeSocket } from './config/socket';
 import assignmentRoutes from './routes/assignmentRoutes';
 
 dotenv.config();
@@ -12,12 +12,7 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-export const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    methods: ['GET', 'POST']
-  }
-});
+export const io = initializeSocket(httpServer);
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000'

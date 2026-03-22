@@ -1,219 +1,93 @@
-# VedaAI - AI Assessment Creator
+# VedaAI
 
-Full-stack AI-powered assessment creator that generates structured question papers using GPT-4.
+> AI-powered question paper generator for educators
 
-## Overview
-
-VedaAI allows teachers to create assignments and automatically generate well-structured question papers with:
-- Multiple sections (A, B, C, etc.)
-- Mixed difficulty levels (Easy, Medium, Hard)
-- Different question types (MCQ, Short, Long, True/False)
-- Professional formatting
-- PDF export capability
+Create professional, curriculum-aligned question papers in minutes. VedaAI uses GPT-4 to generate diverse questions across multiple difficulty levels, organize them into proper sections, and export to PDF - all with real-time progress updates.
 
 ## Architecture
 
 ```
-┌─────────────────┐
-│   Next.js UI    │
-│  (Zustand +     │
-│   Socket.io)    │
-└────────┬────────┘
+Next.js Frontend (React + TypeScript + Tailwind)
          │
-         ├─── HTTP API ────┐
-         │                 │
-         └─── WebSocket ───┤
-                           │
-                    ┌──────▼──────┐
-                    │   Express   │
-                    │   Server    │
-                    └──────┬──────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-    ┌────▼────┐      ┌────▼────┐      ┌────▼────┐
-    │ MongoDB │      │  Redis  │      │ BullMQ  │
-    │         │      │ (Cache) │      │ Worker  │
-    └─────────┘      └─────────┘      └────┬────┘
-                                            │
-                                       ┌────▼────┐
-                                       │   AI    │
-                                       │  (GPT)  │
-                                       └─────────┘
+         ├─── HTTP API ────────┐
+         └─── WebSocket ───────┤
+                               │
+                    Express Backend
+                               │
+         ┌─────────────────────┼──────────────┐
+         │                     │              │
+    MongoDB              Redis Cache    BullMQ Queue
+                                              │
+                                         AI Worker
+                                        (GPT-4 API)
 ```
+
+**Flow:** Create assignment → Queue job → AI generates questions → Real-time updates → PDF export
 
 ## Tech Stack
 
-### Backend
-- Node.js + Express + TypeScript
-- MongoDB (Mongoose)
-- Redis + BullMQ
-- Socket.io
-- OpenAI GPT-4
-- Puppeteer (PDF generation)
-- Zod (validation)
-
-### Frontend
-- Next.js 14 (App Router)
-- TypeScript
-- Zustand (state management)
-- shadcn/ui + Tailwind CSS
-- Socket.io-client
-- Axios
-- React Hook Form
+**Frontend:** Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Zustand, Socket.io  
+**Backend:** Node.js, Express, MongoDB, Redis, BullMQ, GPT-4, Puppeteer
 
 ## Features
 
-### Core Features
-- Assignment creation with validation
-- AI-powered question generation
-- Real-time progress updates via WebSocket
-- Professional question paper display
-- PDF export with proper formatting
+- Multiple question types (MCQ, Short, Long, True/False)
+- Difficulty levels (Easy, Medium, Hard)
+- Real-time generation progress
+- Professional PDF export
 - Question regeneration
-- Redis caching for performance
-- Background job processing with BullMQ
-
-### UI Features
-- Desktop sidebar navigation
-- Mobile bottom navigation
-- Empty states
-- Search and filters
-- Difficulty badges
-- Loading states
 - Responsive design
 
-## Getting Started
+## Setup
 
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Redis (local or cloud)
-- OpenAI API key
+**Prerequisites:** Node.js 18+, MongoDB, Redis, OpenAI API key
 
-### Installation
-
-1. Clone the repository:
+**1. Clone & Install**
 ```bash
-git clone <repository-url>
+git clone https://github.com/yourusername/VedaAI.git
 cd VedaAI
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-2. Install backend dependencies:
-```bash
-cd backend
-npm install
-```
+**2. Environment Variables**
 
-3. Create backend `.env` file:
+Backend `.env`:
 ```env
-PORT=5000
-NODE_ENV=development
 MONGODB_URI=mongodb://localhost:27017/vedaai
 REDIS_URL=redis://localhost:6379
-OPENAI_API_KEY=your_openai_api_key
+OPENROUTER_API_KEY=your_api_key
 CORS_ORIGIN=http://localhost:3000
 ```
 
-4. Install frontend dependencies:
-```bash
-cd ../frontend
-npm install
-```
-
-5. Create frontend `.env.local` file:
+Frontend `.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
-### Running the Application
-
-1. Start MongoDB and Redis (if running locally)
-
-2. Start backend server:
+**3. Run (3 terminals)**
 ```bash
-cd backend
-npm run dev
+cd backend && npm run dev        # Terminal 1
+cd backend && npm run worker     # Terminal 2
+cd frontend && npm run dev       # Terminal 3
 ```
 
-3. Start backend worker (in new terminal):
-```bash
-cd backend
-npm run worker
-```
-
-4. Start frontend (in new terminal):
-```bash
-cd frontend
-npm run dev
-```
-
-5. Open http://localhost:3000
+Open `http://localhost:3000`
 
 ## API Endpoints
 
-### Assignments
 - `POST /api/assignments` - Create assignment
-- `GET /api/assignments` - Get all assignments
-- `GET /api/assignments/:id` - Get assignment by ID
+- `GET /api/assignments` - List all
+- `GET /api/assignments/:id` - Get details
 - `POST /api/assignments/:id/generate` - Start generation
-- `GET /api/assignments/:id/status` - Get job status
-- `POST /api/assignments/:id/regenerate` - Regenerate questions
+
 - `GET /api/assignments/:id/download` - Download PDF
+- `POST /api/assignments/upload` - Upload document
 
-### WebSocket Events
-- `join-assignment` - Join assignment room
-- `leave-assignment` - Leave assignment room
-- `progress` - Generation progress updates
-
-## Project Structure
-
-```
-VedaAI/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # Database, Redis, Queue
-│   │   ├── controllers/     # Request handlers
-│   │   ├── models/          # Mongoose schemas
-│   │   ├── routes/          # API routes
-│   │   ├── services/        # AI, PDF services
-│   │   ├── workers/         # BullMQ workers
-│   │   ├── types/           # TypeScript types
-│   │   ├── utils/           # Validation, helpers
-│   │   └── server.ts        # Main server
-│   └── package.json
-│
-└── frontend/
-    ├── app/                 # Next.js pages
-    ├── components/          # React components
-    ├── lib/                 # API, Socket clients
-    ├── store/               # Zustand store
-    ├── types/               # TypeScript types
-    └── package.json
-```
+**WebSocket:** Real-time progress updates via Socket.io
 
 ## Deployment
 
-### Backend
-Deploy to Railway, Render, or Fly.io:
-1. Set environment variables
-2. Connect MongoDB Atlas
-3. Use Upstash Redis
-4. Deploy
+**Backend:** Railway/Render/Fly.io with MongoDB Atlas + Upstash Redis  
+**Frontend:** Vercel (`vercel deploy`)
 
-### Frontend
-Deploy to Vercel:
-```bash
-cd frontend
-vercel
-```
-
-Set `NEXT_PUBLIC_API_URL` in Vercel dashboard.
-
-## License
-
-MIT
-
-## Author
-
-Built for VedaAI Full Stack Engineering Assignment

@@ -1,7 +1,15 @@
 import { Worker, Job } from 'bullmq';
-import { redisClient } from '../config/redis';
 import Assignment from '../models/Assignment';
 import pdfService from '../services/pdfService';
+
+const redisConnection = {
+  host: process.env.REDIS_URL?.includes('://') 
+    ? new URL(process.env.REDIS_URL).hostname 
+    : 'localhost',
+  port: process.env.REDIS_URL?.includes('://') 
+    ? parseInt(new URL(process.env.REDIS_URL).port || '6379') 
+    : 6379,
+};
 
 export const pdfWorker = new Worker(
   'pdf-generation',
@@ -36,7 +44,7 @@ export const pdfWorker = new Worker(
     }
   },
   {
-    connection: redisClient,
+    connection: redisConnection,
     concurrency: 3
   }
 );

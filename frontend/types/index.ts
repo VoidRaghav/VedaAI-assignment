@@ -2,6 +2,9 @@ export interface Assignment {
   _id: string;
   title: string;
   description?: string;
+  subject?: string;
+  class?: string;
+  duration?: string;
   fileUrl?: string;
   dueDate: string;
   questionTypes: QuestionType[];
@@ -50,6 +53,9 @@ export interface JobProgress {
 export interface AssignmentFormData {
   title: string;
   description?: string;
+  subject?: string;
+  class?: string;
+  duration?: string;
   dueDate: string;
   questionTypes: QuestionType[];
   totalQuestions: number;

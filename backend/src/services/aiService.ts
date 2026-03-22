@@ -1,28 +1,40 @@
 import OpenAI from 'openai';
 import { AssignmentInput, GeneratedPaper, QuestionType } from '../types';
+import https from 'https';
+import http from 'http';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const openrouter = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+  timeout: 60000,
+  maxRetries: 3,
+  httpAgent: new http.Agent({ keepAlive: true, family: 4 }),
+  fetch: (url: any, init: any) => {
+    return fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(60000)
+    });
+  }
 });
 
 export class AIService {
   async generateQuestions(assignment: AssignmentInput): Promise<GeneratedPaper> {
     const prompt = this.buildPrompt(assignment);
     
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+    const response = await openrouter.chat.completions.create({
+      model: 'deepseek/deepseek-chat',
       messages: [
         {
           role: 'system',
-          content: 'You are an expert educator creating well-structured question papers. Always respond with valid JSON only.'
+          content: 'You are an expert educator. Return ONLY valid JSON. Do not include explanation text.'
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7
+      temperature: 0.2,
+      max_tokens: 2000
     });
 
     const content = response.choices[0].message.content;
@@ -30,36 +42,40 @@ export class AIService {
       throw new Error('No response from AI');
     }
 
-    const parsed = JSON.parse(content);
+    const cleanContent = content.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleanContent);
     return this.validateAndStructure(parsed, assignment);
   }
 
   private buildPrompt(assignment: AssignmentInput): string {
-    const questionTypesList = assignment.questionTypes.join(', ');
+    const subject = (assignment as any).subject || 'General';
+    const classLevel = (assignment as any).class || 'Standard';
+    const duration = (assignment as any).duration || '45';
+    const instructions = assignment.additionalInstructions || '';
     
-    return `Create a structured question paper with the following requirements:
+    return `Generate ${assignment.totalQuestions} questions for ${subject} subject for class ${classLevel}.
+Time allowed: ${duration} minutes.
+Total marks: ${assignment.totalMarks}
+${instructions ? `Additional instructions: ${instructions}` : ''}
 
-Title: ${assignment.title}
-${assignment.description ? `Description: ${assignment.description}` : ''}
-Total Questions: ${assignment.totalQuestions}
-Total Marks: ${assignment.totalMarks}
-Question Types: ${questionTypesList}
-${assignment.additionalInstructions ? `Additional Instructions: ${assignment.additionalInstructions}` : ''}
+IMPORTANT: Generate questions ONLY related to ${subject} subject appropriate for class ${classLevel} students.
+Do NOT use the assignment title for question context.
 
-Generate a question paper with multiple sections (Section A, Section B, etc.). Distribute questions across difficulty levels (easy, medium, hard) appropriately.
+CRITICAL REQUIREMENT: Every question MUST have an "answer" field. This is mandatory.
 
-Return ONLY a JSON object with this exact structure:
+Return ONLY this JSON (no explanation):
 {
   "sections": [
     {
       "title": "Section A",
-      "instruction": "Attempt all questions",
+      "instruction": "Answer all questions",
       "questions": [
         {
-          "text": "Question text here",
-          "difficulty": "easy|medium|hard",
-          "marks": number,
-          "type": "mcq|short|long|true-false"
+          "text": "question text about ${subject}",
+          "difficulty": "easy",
+          "marks": 2,
+          "type": "mcq",
+          "answer": "Mitochondria (or the specific correct answer)"
         }
       ]
     }
@@ -68,12 +84,17 @@ Return ONLY a JSON object with this exact structure:
   "totalQuestions": ${assignment.totalQuestions}
 }
 
-Ensure:
-- Total marks sum to exactly ${assignment.totalMarks}
-- Total questions equal exactly ${assignment.totalQuestions}
-- Mix of difficulty levels
-- Questions are relevant to the topic
-- Each section has clear instructions`;
+MANDATORY RULES:
+1. All questions must be about ${subject} for class ${classLevel}
+2. Mix easy/medium/hard difficulty
+3. Create 2-3 sections
+4. Total marks must equal ${assignment.totalMarks}
+5. Total questions must equal ${assignment.totalQuestions}
+6. **CRITICAL**: EVERY question MUST include an "answer" field - NO EXCEPTIONS
+7. For MCQ: provide the correct option with brief explanation
+8. For short answer: provide a concise model answer (2-3 sentences)
+9. For long answer: provide key points or a brief model answer
+10. Never omit the "answer" field - it is required for the answer key`;
   }
 
   private validateAndStructure(parsed: any, assignment: AssignmentInput): GeneratedPaper {

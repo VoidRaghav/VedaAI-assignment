@@ -1,6 +1,9 @@
 export interface AssignmentInput {
   title: string;
   description?: string;
+  subject?: string;
+  class?: string;
+  duration?: string;
   fileUrl?: string;
   dueDate: Date;
   questionTypes: QuestionType[];

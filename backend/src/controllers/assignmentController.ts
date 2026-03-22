@@ -4,6 +4,67 @@ import { assignmentSchema } from '../utils/validation';
 import { questionGenerationQueue, pdfGenerationQueue } from '../config/queue';
 import pdfService from '../services/pdfService';
 import { redisClient } from '../config/redis';
+import ocrService from '../services/ocrService';
+
+export const uploadDocument = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const filePath = req.file.path;
+    const fileType = req.file.mimetype;
+
+    let extractedText = '';
+
+    if (fileType.startsWith('image/')) {
+      extractedText = await ocrService.extractTextFromImage(filePath);
+    } else if (fileType === 'application/pdf') {
+      extractedText = await ocrService.extractTextFromPDF(filePath);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        filename: req.file.originalname,
+        extractedText: extractedText,
+        fileUrl: `/uploads/${req.file.filename}`
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to process uploaded file'
+    });
+  }
+};
+
+export const deleteAssignment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await Assignment.findByIdAndDelete(id);
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        error: 'Assignment not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Assignment deleted successfully'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete assignment'
+    });
+  }
+};
 
 export const createAssignment = async (req: Request, res: Response) => {
   try {

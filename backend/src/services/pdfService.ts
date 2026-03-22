@@ -33,86 +33,238 @@ export class PDFService {
     return pdf;
   }
 
-  private buildHTML(assignment: IAssignment): string {
-    const paper = assignment.generatedPaper!;
+  private buildHTML(assignment: any): string {
+    const { generatedPaper, subject, class: className, duration, totalMarks } = assignment;
     
-    return `
-<!DOCTYPE html>
+    if (!generatedPaper || !generatedPaper.sections) {
+      throw new Error('No generated paper found');
+    }
+
+    let questionCounter = 1;
+    const sections = generatedPaper.sections.map((section: any) => {
+      const questions = section.questions.map((q: any) => {
+        const questionHTML = `
+          <div class="question">
+            <div class="q-number">${questionCounter}.</div>
+            <div class="q-content">
+              <div class="q-text">${q.text}</div>
+              <div class="q-marks">[${q.marks} marks]</div>
+            </div>
+          </div>
+        `;
+        questionCounter++;
+        return questionHTML;
+      }).join('');
+
+      return `
+        <div class="section">
+          <div class="section-title">${section.title}</div>
+          <div class="section-instruction">${section.instruction}</div>
+          ${questions}
+        </div>
+      `;
+    }).join('');
+
+    questionCounter = 1;
+    const answerKey = generatedPaper.sections.map((section: any) => {
+      const answers = section.questions.map((q: any) => {
+        const answer = q.answer || 'Answer not provided';
+        const answerHTML = `
+          <div class="answer-item">
+            <span class="ans-number">${questionCounter}.</span>
+            <span class="ans-text">${answer}</span>
+          </div>
+        `;
+        questionCounter++;
+        return answerHTML;
+      }).join('');
+      return answers;
+    }).join('');
+
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; padding: 20px; color: #333; }
-    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
-    .header h1 { font-size: 24px; margin-bottom: 10px; }
-    .header .meta { font-size: 12px; color: #666; }
-    .student-info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; }
-    .student-info .field { display: flex; flex-direction: column; }
-    .student-info label { font-size: 11px; color: #666; margin-bottom: 5px; }
-    .student-info .line { border-bottom: 1px solid #000; height: 25px; }
-    .section { margin-bottom: 30px; }
-    .section-header { background: #f5f5f5; padding: 10px 15px; margin-bottom: 15px; border-left: 4px solid #000; }
-    .section-title { font-size: 16px; font-weight: bold; }
-    .section-instruction { font-size: 12px; color: #666; margin-top: 5px; }
-    .question { margin-bottom: 20px; padding-left: 10px; }
-    .question-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .question-text { font-size: 14px; line-height: 1.6; }
-    .question-meta { display: flex; gap: 10px; align-items: center; }
-    .difficulty { padding: 3px 8px; border-radius: 3px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
-    .difficulty.easy { background: #d4edda; color: #155724; }
-    .difficulty.medium { background: #fff3cd; color: #856404; }
-    .difficulty.hard { background: #f8d7da; color: #721c24; }
-    .marks { font-size: 12px; font-weight: bold; color: #666; }
-    .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #ddd; padding-top: 15px; }
+    @page {
+      size: A4;
+      margin: 20mm 15mm;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 210mm;
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+      padding: 0;
+      margin: 0 auto;
+    }
+    
+    .page-container {
+      width: 100%;
+      min-height: 297mm;
+      padding: 15mm;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .school-name {
+      font-size: 18pt;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .subject-line {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 3px 0;
+    }
+    
+    .class-line {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 3px 0;
+    }
+    
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 15px 0;
+      font-size: 11pt;
+    }
+    
+    .general-instructions {
+      margin: 15px 0;
+      font-size: 11pt;
+    }
+    
+    .student-details {
+      margin: 15px 0 20px 0;
+      font-size: 11pt;
+    }
+    
+    .student-details div {
+      margin: 5px 0;
+    }
+    
+    .fill-line {
+      display: inline-block;
+      border-bottom: 1px solid #000;
+      min-width: 180px;
+      margin-left: 5px;
+    }
+    
+    .section {
+      margin: 20px 0;
+    }
+    
+    .section-title {
+      font-size: 13pt;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px 0 10px 0;
+    }
+    
+    .section-instruction {
+      font-style: italic;
+      font-size: 11pt;
+      margin-bottom: 12px;
+    }
+    
+    .question {
+      display: flex;
+      margin: 12px 0;
+      page-break-inside: avoid;
+    }
+    
+    .q-number {
+      min-width: 30px;
+      font-weight: bold;
+    }
+    
+    .q-content {
+      flex: 1;
+    }
+    
+    .q-text {
+      display: inline;
+    }
+    
+    .q-marks {
+      float: right;
+      font-size: 10pt;
+      margin-left: 10px;
+    }
+    
+    .answer-section {
+      page-break-before: always;
+      margin-top: 30px;
+    }
+    
+    .answer-title {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-bottom: 20px;
+    }
+    
+    .answer-item {
+      display: flex;
+      margin: 8px 0;
+      page-break-inside: avoid;
+    }
+    
+    .ans-number {
+      min-width: 30px;
+      font-weight: bold;
+    }
+    
+    .ans-text {
+      flex: 1;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>${assignment.title}</h1>
-    <div class="meta">
-      <p>Total Marks: ${paper.totalMarks} | Total Questions: ${paper.totalQuestions}</p>
-      <p>Due Date: ${new Date(assignment.dueDate).toLocaleDateString()}</p>
+  <div class="page-container">
+    <div class="header">
+      <div class="school-name">Delhi Public School, Sector-4, Bokaro</div>
+      <div class="subject-line">Subject: ${subject || 'General'}</div>
+      <div class="class-line">Class: ${className || 'Standard'}</div>
     </div>
-  </div>
-
-  <div class="student-info">
-    <div class="field">
-      <label>Name:</label>
-      <div class="line"></div>
+    
+    <div class="meta-row">
+      <span><strong>Time Allowed:</strong> ${duration || '45'} minutes</span>
+      <span><strong>Maximum Marks:</strong> ${totalMarks || generatedPaper.totalMarks || '20'}</span>
     </div>
-    <div class="field">
-      <label>Roll Number:</label>
-      <div class="line"></div>
+    
+    <div class="general-instructions">
+      All questions are compulsory unless stated otherwise.
     </div>
-    <div class="field">
-      <label>Section:</label>
-      <div class="line"></div>
+    
+    <div class="student-details">
+      <div>Name: <span class="fill-line"></span></div>
+      <div>Roll Number: <span class="fill-line"></span></div>
+      <div>Class: ${className || 'Standard'} Section: <span class="fill-line" style="min-width: 60px;"></span></div>
     </div>
-  </div>
-
-  ${paper.sections.map((section, idx) => `
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">${section.title}</div>
-        <div class="section-instruction">${section.instruction}</div>
-      </div>
-      ${section.questions.map((q, qIdx) => `
-        <div class="question">
-          <div class="question-header">
-            <div class="question-text"><strong>Q${qIdx + 1}.</strong> ${q.text}</div>
-            <div class="question-meta">
-              <span class="difficulty ${q.difficulty}">${q.difficulty}</span>
-              <span class="marks">[${q.marks} marks]</span>
-            </div>
-          </div>
-        </div>
-      `).join('')}
+    
+    ${sections}
+    
+    <div class="answer-section">
+      <div class="answer-title">Answer Key</div>
+      ${answerKey}
     </div>
-  `).join('')}
-
-  <div class="footer">
-    <p>Generated by VedaAI Assessment Creator</p>
   </div>
 </body>
 </html>`;
