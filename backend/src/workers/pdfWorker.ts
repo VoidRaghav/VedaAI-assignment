@@ -2,14 +2,22 @@ import { Worker, Job } from 'bullmq';
 import Assignment from '../models/Assignment';
 import pdfService from '../services/pdfService';
 
-const redisConnection = {
-  host: process.env.REDIS_URL?.includes('://') 
-    ? new URL(process.env.REDIS_URL).hostname 
-    : 'localhost',
-  port: process.env.REDIS_URL?.includes('://') 
-    ? parseInt(new URL(process.env.REDIS_URL).port || '6379') 
-    : 6379,
-};
+const redisConnection = process.env.REDIS_URL?.startsWith('rediss://') 
+  ? {
+      host: new URL(process.env.REDIS_URL).hostname,
+      port: parseInt(new URL(process.env.REDIS_URL).port || '6379'),
+      tls: {
+        rejectUnauthorized: false
+      }
+    }
+  : {
+      host: process.env.REDIS_URL?.includes('://') 
+        ? new URL(process.env.REDIS_URL).hostname 
+        : 'localhost',
+      port: process.env.REDIS_URL?.includes('://') 
+        ? parseInt(new URL(process.env.REDIS_URL).port || '6379') 
+        : 6379,
+    };
 
 export const pdfWorker = new Worker(
   'pdf-generation',
