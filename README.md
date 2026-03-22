@@ -19,7 +19,7 @@ Next.js Frontend (React + TypeScript + Tailwind)
     MongoDB              Redis Cache    BullMQ Queue
                                               │
                                          AI Worker
-                                        (GPT-4 API)
+                                        (Deepseek API)
 ```
 
 **Flow:** Create assignment → Queue job → AI generates questions → Real-time updates → PDF export
