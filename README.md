@@ -4,7 +4,7 @@
 
 Create professional, curriculum-aligned question papers in minutes. VedaAI uses GPT-4 to generate diverse questions across multiple difficulty levels, organize them into proper sections, and export to PDF - all with real-time progress updates.
 
-## 📸 Demo
+##Demo
 
 ### Dashboard
 ![Dashboard](docs/images/dashboard.png)
