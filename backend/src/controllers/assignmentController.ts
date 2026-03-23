@@ -68,7 +68,9 @@ export const deleteAssignment = async (req: Request, res: Response) => {
 
 export const createAssignment = async (req: Request, res: Response) => {
   try {
+    console.log('Received assignment data:', JSON.stringify(req.body, null, 2));
     const validatedData = assignmentSchema.parse(req.body);
+    console.log('Validation passed');
 
     const assignment = new Assignment({
       ...validatedData,
@@ -77,15 +79,21 @@ export const createAssignment = async (req: Request, res: Response) => {
     });
 
     await assignment.save();
+    console.log('Assignment saved:', assignment._id);
 
     res.status(201).json({
       success: true,
       data: assignment
     });
   } catch (error: any) {
+    console.error('Assignment creation error:', error);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
     res.status(400).json({
       success: false,
-      error: error.message || 'Failed to create assignment'
+      error: error.message || 'Failed to create assignment',
+      details: error.errors || error.issues || undefined
     });
   }
 };
