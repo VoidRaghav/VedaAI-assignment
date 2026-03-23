@@ -1,27 +1,17 @@
 import { Queue } from 'bullmq';
+import IORedis from 'ioredis';
 
-const redisConnection = process.env.REDIS_URL?.startsWith('rediss://') 
-  ? {
-      host: new URL(process.env.REDIS_URL).hostname,
-      port: parseInt(new URL(process.env.REDIS_URL).port || '6379'),
-      password: new URL(process.env.REDIS_URL).password,
-      tls: {
-        rejectUnauthorized: false
-      }
-    }
-  : {
-      host: process.env.REDIS_URL?.includes('://') 
-        ? new URL(process.env.REDIS_URL).hostname 
-        : 'localhost',
-      port: process.env.REDIS_URL?.includes('://') 
-        ? parseInt(new URL(process.env.REDIS_URL).port || '6379') 
-        : 6379,
-    };
+const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  tls: process.env.REDIS_URL?.startsWith('rediss://') ? {
+    rejectUnauthorized: false
+  } : undefined
+});
 
 export const questionGenerationQueue = new Queue('question-generation', {
-  connection: redisConnection
+  connection: redisConnection as any
 });
 
 export const pdfGenerationQueue = new Queue('pdf-generation', {
-  connection: redisConnection
+  connection: redisConnection as any
 });
