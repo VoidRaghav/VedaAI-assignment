@@ -7,8 +7,13 @@ export const assignmentSchema = z.object({
   class: z.string().optional(),
   duration: z.string().optional(),
   fileUrl: z.string().optional(),
-  dueDate: z.string().refine((date) => new Date(date) > new Date(), {
-    message: 'Due date must be in the future'
+  dueDate: z.string().refine((date) => {
+    const dueDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dueDate >= today;
+  }, {
+    message: 'Due date must be today or in the future'
   }),
   questionTypes: z.array(z.enum(['mcq', 'short', 'long', 'true-false'])).min(1, 'At least one question type is required'),
   totalQuestions: z.number().min(1, 'Total questions must be at least 1'),
