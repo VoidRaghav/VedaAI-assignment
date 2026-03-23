@@ -8,29 +8,54 @@ export class PDFService {
       throw new Error('No generated paper found');
     }
 
+    console.log('Building HTML for PDF...');
     const html = this.buildHTML(assignment);
+    console.log('HTML built, length:', html.length);
     
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    let browser;
+    try {
+      console.log('Launching Puppeteer...');
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ]
+      });
+      console.log('Puppeteer launched successfully');
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
+      const page = await browser.newPage();
+      console.log('Setting page content...');
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      console.log('Page content set');
+      
+      console.log('Generating PDF...');
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        }
+      });
+      console.log('PDF generated, size:', pdf.length);
+
+      await browser.close();
+      return pdf;
+    } catch (error) {
+      console.error('Puppeteer error:', error);
+      if (browser) {
+        await browser.close();
       }
-    });
-
-    await browser.close();
-    return pdf;
+      throw error;
+    }
   }
 
   private buildHTML(assignment: any): string {

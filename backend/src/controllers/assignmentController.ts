@@ -232,9 +232,11 @@ export const regenerateQuestions = async (req: Request, res: Response) => {
 export const downloadPDF = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    console.log('PDF download requested for assignment:', id);
 
     const assignment = await Assignment.findById(id);
     if (!assignment) {
+      console.log('Assignment not found:', id);
       return res.status(404).json({
         success: false,
         error: 'Assignment not found'
@@ -242,18 +244,23 @@ export const downloadPDF = async (req: Request, res: Response) => {
     }
 
     if (!assignment.generatedPaper) {
+      console.log('No generated paper for assignment:', id);
       return res.status(400).json({
         success: false,
         error: 'No generated paper available'
       });
     }
 
+    console.log('Generating PDF for assignment:', id);
     const pdfBuffer = await pdfService.generatePDF(assignment);
+    console.log('PDF generated successfully, size:', pdfBuffer.length);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${assignment.title}.pdf"`);
     res.send(pdfBuffer);
   } catch (error: any) {
+    console.error('PDF generation error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate PDF'
